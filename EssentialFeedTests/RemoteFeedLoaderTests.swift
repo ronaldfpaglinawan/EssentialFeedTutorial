@@ -10,6 +10,7 @@ import EssentialFeed
 
 class RemoteFeedLoaderTests: XCTestCase {
 
+    // MARK: - Tests for HTTPClient
     func test_init_doesNotRequestDataFromURL() {
         // Arrange
         let (_, client) = makeSUT()
@@ -47,6 +48,7 @@ class RemoteFeedLoaderTests: XCTestCase {
         XCTAssertEqual(client.requestedURLs, [url, url])
     }
     
+    // MARK: - Tests for error cases
     func test_load_deliversErrorOnClientError() {
         // Arrange
         let (sut, client) = makeSUT()
@@ -82,15 +84,51 @@ class RemoteFeedLoaderTests: XCTestCase {
         })
     }
     
+    // MARK: - Tests for success cases
     func test_load_deliversNoItemsOn200HTTPResponseWithEmptyJSONList() {
         // Arrange
         let (sut, client) = makeSUT()
-        var capturedResults = [RemoteFeedLoader.Result]()
         
         // Act
         expect(sut, toCompleteWith: .success([]), when: {
             let emptyListJSON = Data("{\"items\": []}".utf8)
             client.complete(withStatusCode: 200, data: emptyListJSON)
+        })
+    }
+    
+    func test_load_deliversItemsOn200HTTPResponseWithJSONItems() {
+        // Arrange
+        let (sut, client) = makeSUT()
+        let item1 = FeedItem(
+            id: UUID(),
+            description: nil,
+            location: nil,
+            imageURL: URL(string: "http://a-url.com")!
+        )
+        let item1JSON = [
+            "id": item1.id.uuidString,
+            "image": item1.imageURL.absoluteString
+        ]
+        let item2 = FeedItem(
+            id: UUID(),
+            description: "a description",
+            location: "a location",
+            imageURL: URL(string: "http://another-url.com")!
+        )
+        let item2JSON = [
+            "id": item2.id.uuidString,
+            "description": item2.description,
+            "location": item2.location,
+            "image": item2.imageURL.absoluteString
+        ]
+        let itemsJSON = [
+            "items": [item1JSON, item2JSON]
+        ]
+        
+        // Act
+        expect(sut, toCompleteWith: .success([item1, item2]), when: {
+            let json = try! JSONSerialization.data(withJSONObject: itemsJSON)
+            client.complete(withStatusCode: 200, data: json)
         })
     }
          
